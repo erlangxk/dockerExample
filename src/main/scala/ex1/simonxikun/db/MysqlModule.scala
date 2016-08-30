@@ -3,9 +3,11 @@ package ex1.simonxikun.db
 import com.twitter.inject.{ Injector, TwitterModule }
 import java.net.InetSocketAddress
 import com.twitter.finagle.exp.Mysql
-import com.twitter.finagle.exp.mysql.{ Client, Transactions }
+import com.twitter.finagle.exp.mysql.{ Parameter, Row, Client, Transactions, StringValue, PreparedStatement }
 import com.google.inject.{ Singleton, Provides }
 import com.twitter.util.Future
+import scalaz._
+import Scalaz._
 
 object MysqlModule extends TwitterModule {
 
@@ -14,8 +16,6 @@ object MysqlModule extends TwitterModule {
   val host = flag("mysql-dbserver", new InetSocketAddress("localhost", 3306), "mysql database server address")
   val dbname = flag("mysql-dbname", "alottodb", "mysql database name")
 
-  type TClient = Client with Transactions
-
   override def singletonShutdown(injector: Injector) {
     val c = injector.instance(classOf[Client])
     c.close()
@@ -23,32 +23,34 @@ object MysqlModule extends TwitterModule {
 
   @Singleton
   @Provides
-  def providesMysqlClient(): TClient = Mysql.client
+  def providesMysqlClient(): TrxClient = Mysql.client
     .withCredentials(username(), password())
     .withDatabase(dbname())
     .newRichClient(s"${host().getHostName}:${host().getPort()}")
 
 }
 
+object Users {
+
+  def findCurrency(id: String): Reader[TrxClient, Future[Option[String]]] = Reader((client: TrxClient) => {
+    val sql = client.prepare("select currency from lotto_players where id = ?")
+    selectOne(sql, id) { row =>
+      val StringValue(currency) = row("currency").get
+      currency
+    }
+  })
+
+  def selectOne[A](sql: PreparedStatement, params: Parameter*)(f: Row => A): Future[Option[A]] = {
+    sql.select(params: _*)(f).flatMap {
+      case Nil        => Future.value(None)
+      case Seq(value) => Future.value(Some(value))
+      case _          => Future.exception(new IllegalStateException("multiple values found"))
+    }
+  }
+}
+
 object Main extends App {
   import com.twitter.util.Await
-  import com.twitter.finagle.exp.mysql._
-  val sql = "select * from lotto_players"
-  val c = MysqlModule.providesMysqlClient()
-  val result = c.select(sql) { row =>
-    val StringValue(id) = row("id").get
-    val nickname = row("nickname").collect {
-      case StringValue(nickname) => nickname
-    }
-    (id, nickname)
-  }
-
-  val f = result.foreach { r =>
-    r.foreach(r2 => println(r2))
-  }.rescue {
-    case e =>
-      e.printStackTrace()
-      Future.exception(e)
-  }
-  Await.ready(f)
+  val x: Future[Option[String]] = Users.findCurrency("simon")(MysqlModule.providesMysqlClient())
+  val f = Await.ready(x.map(println))
 }
