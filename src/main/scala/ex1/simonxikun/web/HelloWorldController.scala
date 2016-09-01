@@ -1,10 +1,10 @@
-package ex1.simonxikun
+package ex1.simonxikun.web
 
 import ex1.simonxikun.db.{ TrxClient, Users }
-
 import com.twitter.finatra.http.Controller
-import com.twitter.finagle.http.{ Request, Response }
+import com.twitter.finagle.http.Request
 import javax.inject.{ Inject, Singleton }
+import scalaz.Kleisli.kleisliFn
 
 case class HiRequest(id: Long, name: String)
 case class CurrencyRequest(name: String)
