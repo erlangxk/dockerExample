@@ -1,0 +1,5 @@
+docker run --name mymysql -e MYSQL_ROOT_PASSWORD=simonxikun -d mysql
+
+docker build -t webx:v1 .
+
+docker run --link mymysql:mysql --name web1 -d webx:v1

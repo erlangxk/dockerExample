@@ -11,10 +11,10 @@ import Scalaz._
 
 object MysqlModule extends TwitterModule {
 
-  val username = flag("mysql-username", "ts1", "mysql database username")
-  val password = flag("mysql-password", "111111", "mysql database password")
-  val host = flag("mysql-dbserver", new InetSocketAddress("localhost", 3306), "mysql database server address")
-  val dbname = flag("mysql-dbname", "alottodb", "mysql database name")
+  val username = flag("mysql.username", "ts1", "mysql database username")
+  val password = flag("mysql.password", "111111", "mysql database password")
+  val host = flag("mysql.dbserver", new InetSocketAddress("localhost", 3306), "mysql database server address")
+  val dbname = flag("mysql.dbname", "alottodb", "mysql database name")
 
   override def singletonShutdown(injector: Injector) {
     val c = injector.instance(classOf[Client])
@@ -47,10 +47,4 @@ object Users {
       case _          => Future.exception(new IllegalStateException("multiple values found"))
     }
   }
-}
-
-object Main extends App {
-  import com.twitter.util.Await
-  val x: Future[Option[String]] = Users.findCurrency("simon")(MysqlModule.providesMysqlClient())
-  val f = Await.ready(x.map(println))
 }
